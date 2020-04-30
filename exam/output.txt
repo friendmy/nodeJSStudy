@@ -1,0 +1,4 @@
+SELECT  TOP (200) CompanyID, ItemID, ItemGubunID, ItemCode, ItemName, ItemAmount, ItemCost, WriteUserID, WriteDate, ModifyUserID, ModifyDate
+FROM     FP_COM_Item
+WHERE  (ItemGubunID = 35)
+ORDER BY ItemID DESC
