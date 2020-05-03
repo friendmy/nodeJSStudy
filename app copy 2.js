@@ -78,17 +78,14 @@ const connectDB = () => {
 
     // 스키마 정의
     UserSchema = mongoose.Schema({
-      id: { type: String, required: "ID is required", unique: true }, // , unique: true -> Deprecation
+      id: { type: String, required: "ID is required" }, // , unique: true -> Deprecation
+      name: String,
       password: { type: String, required: true },
-      name: { type: String, index: "hashed" },
-      age: { type: Number, default: -1 },
-      create_at: { type: Date, index: { unique: false }, default: Date.now },
-      updated_at: { type: Date, index: { unique: false }, default: Date.now },
     });
     console.log("UserSchema 정의함.");
 
     // 모델 정의
-    UserModel = mongoose.model("users2", UserSchema);
+    UserModel = mongoose.model("users", UserSchema);
     console.log("UserModel 정의함");
   });
 
