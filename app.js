@@ -42,11 +42,8 @@ app.use(
   })
 );
 
-// 몽고디비 모듈 사용
-import { MongoClient } from "mongodb";
-
+// 몽구스 사용
 import mongoose from "mongoose";
-import { ifError } from "assert";
 
 // 데이터베이스 객체를 위한 변수 선언
 let database;
@@ -57,6 +54,7 @@ let UserSchema;
 // 데이터베이스 모델 객체를 위한 변수 선언
 let UserModel;
 
+// 데이터베이스 연결
 const connectDB = () => {
   // 데이터베이스 연결 정보
   const databaseUrl = "mongodb://localhost:27017/local";
@@ -85,6 +83,16 @@ const connectDB = () => {
       create_at: { type: Date, index: { unique: false }, default: Date.now },
       updated_at: { type: Date, index: { unique: false }, default: Date.now },
     });
+
+    // 화살표 함수로는 안됨
+    UserSchema.static("findById", function (id, callback) {
+      return this.find({ id }, callback);
+    });
+
+    // 화살표 함수로는 안됨
+    UserSchema.static("findAll", function (callback) {
+      return this.find({}, callback);
+    });
     console.log("UserSchema 정의함.");
 
     // 모델 정의
@@ -98,27 +106,54 @@ const connectDB = () => {
   });
 };
 
+// 사용자 인증 함수
 const authUser = (database, id, password, callback) => {
   console.log(`authUser 호출됨.: ${id}, ${password}`);
 
-  UserModel.find({ id, password }, (err, results) => {
+  UserModel.findById(id, (err, results) => {
     if (err) {
       callback(err, null);
+      return;
     }
 
-    console.log(`아이디 [${id}], 비밀번호 [${password}] 로 사용자 검색 결과`);
+    console.log(`아이디 ${id}로 사용자 검색 결과`);
     console.dir(results);
 
     if (results.length > 0) {
-      console.log(
-        `아이디 [${id}], 비밀번호: [${password}] 가 일치하는 사용자 찾음.`
-      );
-      callback(null, results);
+      console.log("아이디와 일치하는 사용자 찾음.");
+
+      // 비밀번호 확인
+      if (results[0].password === password) {
+        console.log("비밀번호 일치함");
+        callback(null, results);
+      } else {
+        console.log("비밀번호 일치하지 않음");
+        callback(null, null);
+      }
     } else {
-      console.log("일치하는 사용자 찾지 못함");
+      console.log("아이디와 일치하는 사용자를 찾지 못함");
       callback(null, null);
     }
   });
+
+  // UserModel.find({ id, password }, (err, results) => {
+  //   if (err) {
+  //     callback(err, null);
+  //   }
+
+  //   console.log(`아이디 [${id}], 비밀번호 [${password}] 로 사용자 검색 결과`);
+  //   console.dir(results);
+
+  //   if (results.length > 0) {
+  //     console.log(
+  //       `아이디 [${id}], 비밀번호: [${password}] 가 일치하는 사용자 찾음.`
+  //     );
+  //     callback(null, results);
+  //   } else {
+  //     console.log("일치하는 사용자 찾지 못함");
+  //     callback(null, null);
+  //   }
+  // });
 };
 
 // 사용자 추가 함수
@@ -137,6 +172,7 @@ const addUser = (database, id, password, name, callback) => {
   });
 };
 
+// 패스워드 수정 함수
 const setPassword = (database, id, password, callback) => {
   // users 컬렉션 참조
   const users = database.collection("users");
@@ -193,6 +229,7 @@ router.route("/process/login").post((req, res) => {
   }
 });
 
+// 사용자 추가 라우팅 함수
 router.route("/process/adduser").post((req, res) => {
   console.log("/process/adduser 호출됨");
 
@@ -224,6 +261,7 @@ router.route("/process/adduser").post((req, res) => {
   }
 });
 
+// 패스워드 수정 라우팅 함수
 router.route("/process/setpassword").post((req, res) => {
   console.log("/process/setpassword 호출됨");
 
@@ -274,6 +312,52 @@ router.route("/process/setpassword").post((req, res) => {
         res.end();
       }
     });
+  }
+});
+
+router.route("/process/listuser").post((req, res) => {
+  console.log("/process/listuser 호출됨");
+
+  // 데이터베이스 객체가 초기화된 경우, 모델 객체의 메소드 호출
+  if (database) {
+    // 1. 모든 사용자 검색
+    UserModel.findAll((err, results) => {
+      // 오류가 발생했을 때 클라이언트로 오류 전송
+      if (err) {
+        console.error("사용자 리스트 조회 중 오류 발생:" + err.stack);
+
+        res.writeHead("200", { "Content-Type": "text/html;charset=utf8" });
+        res.write("<h2>사용자 리스트 조회 중 오류 발생</h2>");
+        res.write(`${err.stack}`);
+        res.end();
+      }
+
+      if (results) {
+        console.dir(results);
+
+        res.writeHead("200", { "Content-Type": "text/html;charset=utf8" });
+        res.write("<h2>사용자 리스트</h2>");
+        res.write("<div><ul>");
+
+        for (let index = 0; index < results.length; index++) {
+          const curId = results[index].id;
+          const curName = results[index].name;
+          res.write(`<li>#${index} + : ${curId},${curName}</li>`);
+        }
+
+        res.write("</ul></div>");
+        res.end();
+      } else {
+        res.writeHead("200", { "Content-Type": "text/html;charset=utf8" });
+        res.write("<h2>사용자 리스트 조회 실패</h2>");
+        res.end();
+      }
+    });
+  } else {
+    // 데이터베이스 객체가 초기화되지 않았을 때 실패 응답 전송
+    res.writeHead("200", { "Content-Type": "text/html;charset=utf8" });
+    res.write("<h2>데이터베이스 연결 실패</h2>");
+    res.end();
   }
 });
 
