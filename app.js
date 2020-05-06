@@ -117,10 +117,13 @@ const createUserSchema = () => {
 
   UserSchema.method("encryptPassword", function (plainText, inSalt) {
     if (inSalt) {
-      return crypto.createHmac("sha1", inSalt).update(plainText).digest("hex");
+      return crypto
+        .createHmac("sha256", inSalt)
+        .update(plainText)
+        .digest("hex");
     } else {
       return crypto
-        .createHmac("sha1", this.salt)
+        .createHmac("sha256", this.salt)
         .update(plainText)
         .digest("hex");
     }
@@ -157,7 +160,7 @@ const createUserSchema = () => {
 
   UserSchema.path("id").validate(function (id) {
     return id.length;
-  }, "i  칼럼의 값이 없습니다.");
+  }, "id  칼럼의 값이 없습니다.");
 
   UserSchema.path("name").validate(function (name) {
     return name.length;
@@ -186,13 +189,19 @@ const authUser = (database, id, password, callback) => {
     }
 
     console.log(`아이디 ${id}로 사용자 검색 결과`);
-    console.dir(results);
 
     if (results.length > 0) {
       console.log("아이디와 일치하는 사용자 찾음.");
 
-      // 비밀번호 확인
-      if (results[0].password === password) {
+      // 비밀번호 확인 : 모델 인스턴스 객체를 만들고 authenticate() 메소드 호출
+      const user = new UserModel({ id });
+      const authenticated = user.authenticate(
+        password,
+        results[0].salt,
+        results[0].hashed_password
+      );
+
+      if (authenticated) {
         console.log("비밀번호 일치함");
         callback(null, results);
       } else {
@@ -204,25 +213,6 @@ const authUser = (database, id, password, callback) => {
       callback(null, null);
     }
   });
-
-  // UserModel.find({ id, password }, (err, results) => {
-  //   if (err) {
-  //     callback(err, null);
-  //   }
-
-  //   console.log(`아이디 [${id}], 비밀번호 [${password}] 로 사용자 검색 결과`);
-  //   console.dir(results);
-
-  //   if (results.length > 0) {
-  //     console.log(
-  //       `아이디 [${id}], 비밀번호: [${password}] 가 일치하는 사용자 찾음.`
-  //     );
-  //     callback(null, results);
-  //   } else {
-  //     console.log("일치하는 사용자 찾지 못함");
-  //     callback(null, null);
-  //   }
-  // });
 };
 
 // 사용자 추가 함수
